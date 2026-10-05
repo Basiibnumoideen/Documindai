@@ -149,16 +149,21 @@ export async function POST(request) {
 
     // 7. Try Supabase pgvector RPC function first
     try {
-      const { data: rpcChunks, error: rpcError } = await supabase.rpc('match_chunks', {
+      const rpcParams = {
         query_embedding: questionEmbedding,
         match_threshold: 0.05,
         match_count: matchLimit * 2,
-      });
+      };
+      if (resolvedDocId != null) {
+        rpcParams.filter_document_id = Number(resolvedDocId);
+      }
+
+      const { data: rpcChunks, error: rpcError } = await supabase.rpc('match_chunks', rpcParams);
 
       if (!rpcError && rpcChunks && rpcChunks.length > 0) {
-        // Filter by document ID if resolved
-        const filteredRpc = resolvedDocId
-          ? rpcChunks.filter(c => !c.document_id || c.document_id === resolvedDocId)
+        // Filter by document ID if resolved, comparing non-null values as strings
+        const filteredRpc = resolvedDocId != null
+          ? rpcChunks.filter(c => c.document_id != null && String(c.document_id) === String(resolvedDocId))
           : rpcChunks;
 
         if (filteredRpc.length > 0) {

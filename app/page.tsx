@@ -223,7 +223,7 @@ export default function Home() {
 
         setActiveDocName(fileName);
         setActiveDocChunks(totalChunks);
-        if (resolvedDocId) setActiveDocId(resolvedDocId);
+        setActiveDocId(resolvedDocId);
         setSuggestedQuestions(questions);
 
         // Persist session to localStorage so refresh keeps document and tailored questions active

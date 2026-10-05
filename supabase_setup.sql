@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS public.chunks (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::TEXT, now()) NOT NULL
 );
 
--- 4. Enable Row Level Security (RLS) & allow anonymous/public operations
+-- 4. Enable Row Level Security (RLS) & restrict access to authenticated users
 ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chunks ENABLE ROW LEVEL SECURITY;
 
@@ -32,13 +32,13 @@ DROP POLICY IF EXISTS "Allow public read and write on chunks" ON public.chunks;
 
 CREATE POLICY "Allow public read and write on documents"
   ON public.documents FOR ALL
-  TO anon, authenticated
+  TO authenticated
   USING (true)
   WITH CHECK (true);
 
 CREATE POLICY "Allow public read and write on chunks"
   ON public.chunks FOR ALL
-  TO anon, authenticated
+  TO authenticated
   USING (true)
   WITH CHECK (true);
 
@@ -46,7 +46,8 @@ CREATE POLICY "Allow public read and write on chunks"
 CREATE OR REPLACE FUNCTION public.match_chunks (
   query_embedding vector(768),
   match_threshold float,
-  match_count int
+  match_count int,
+  filter_document_id bigint DEFAULT NULL
 )
 RETURNS TABLE (
   id BIGINT,
@@ -66,7 +67,8 @@ BEGIN
     chunks.page,
     (1 - (chunks.vector_embedding <=> query_embedding))::float AS similarity
   FROM public.chunks
-  WHERE 1 - (chunks.vector_embedding <=> query_embedding) > match_threshold
+  WHERE (filter_document_id IS NULL OR chunks.document_id = filter_document_id)
+    AND 1 - (chunks.vector_embedding <=> query_embedding) > match_threshold
   ORDER BY chunks.vector_embedding <=> query_embedding
   LIMIT match_count;
 END;

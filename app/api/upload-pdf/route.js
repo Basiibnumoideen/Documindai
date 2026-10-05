@@ -160,6 +160,12 @@ export async function POST(request) {
         const { error: chunkError } = await supabase.from('chunks').insert(supabaseRecords);
         if (chunkError) {
           console.warn('Supabase chunk insert note (using fallback):', chunkError.message);
+          try {
+            await supabase.from('documents').delete().eq('id', docId);
+          } catch (delErr) {
+            console.warn('Failed to delete orphaned document row:', delErr.message);
+          }
+          docId = null;
         } else {
           supabaseSaved = true;
           console.log(`Saved ${embeddedChunks.length} chunks to Supabase successfully.`);
@@ -167,6 +173,14 @@ export async function POST(request) {
       }
     } catch (dbErr) {
       console.warn('Database note while saving to Supabase:', dbErr.message);
+      if (!supabaseSaved && docId) {
+        try {
+          await supabase.from('documents').delete().eq('id', docId);
+        } catch {
+          // ignore cleanup failure
+        }
+        docId = null;
+      }
     }
 
     // If Supabase failed (e.g. RLS policies not yet set up), save to local backup store

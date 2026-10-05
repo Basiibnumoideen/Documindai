@@ -187,7 +187,7 @@ flowchart TD
 
 ## 🛡️ Enterprise-Grade Security & Anti-Malware System
 
-DocuMind AI integrates a robust defense-in-depth security model located in [`lib/security.js`](file:///c:/Project/chat-with-pdf/lib/security.js):
+DocuMind AI integrates a robust defense-in-depth security model located in [`lib/security.js`](lib/security.js):
 
 | Vector | Potential Attack | DocuMind AI Defense Mechanism |
 | :--- | :--- | :--- |
@@ -272,13 +272,13 @@ DROP POLICY IF EXISTS "Allow public read and write on chunks" ON public.chunks;
 
 CREATE POLICY "Allow public read and write on documents"
   ON public.documents FOR ALL
-  TO anon, authenticated
+  TO authenticated
   USING (true)
   WITH CHECK (true);
 
 CREATE POLICY "Allow public read and write on chunks"
   ON public.chunks FOR ALL
-  TO anon, authenticated
+  TO authenticated
   USING (true)
   WITH CHECK (true);
 
@@ -286,7 +286,8 @@ CREATE POLICY "Allow public read and write on chunks"
 CREATE OR REPLACE FUNCTION public.match_chunks (
   query_embedding vector(768),
   match_threshold float,
-  match_count int
+  match_count int,
+  filter_document_id bigint DEFAULT NULL
 )
 RETURNS TABLE (
   id BIGINT,
@@ -306,7 +307,8 @@ BEGIN
     chunks.page,
     (1 - (chunks.vector_embedding <=> query_embedding))::float AS similarity
   FROM public.chunks
-  WHERE 1 - (chunks.vector_embedding <=> query_embedding) > match_threshold
+  WHERE (filter_document_id IS NULL OR chunks.document_id = filter_document_id)
+    AND 1 - (chunks.vector_embedding <=> query_embedding) > match_threshold
   ORDER BY chunks.vector_embedding <=> query_embedding
   LIMIT match_count;
 END;
@@ -343,7 +345,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/your-username/chat-with-pdf.git
+git clone https://github.com/basiibnumoideen/chat-with-pdf.git
 cd chat-with-pdf
 ```
 
@@ -353,7 +355,11 @@ npm install
 ```
 
 ### 3. Configure Environment Variables
-Ensure `.env.local` is present in the root folder with your `GEMINI_API_KEY`.
+Copy the template to create your `.env.local` file:
+```bash
+cp .env.example .env.local
+```
+Then open `.env.local` and add your `GEMINI_API_KEY` (along with optional Supabase credentials).
 
 ### 4. Run the Development Server
 ```bash
