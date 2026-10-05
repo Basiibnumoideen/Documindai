@@ -14,6 +14,9 @@ import {
   detectPromptInjectionAttempt,
 } from '@/lib/security';
 
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 export async function POST(request) {
   try {
     // 1. Client IP & Rate Limiting Protection (Anti-DoS / Anti-Bruteforce)

@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
-import { PDFParse } from 'pdf-parse';
+import { extractText, getDocumentProxy } from 'unpdf';
 import { supabase, getEmbedding, generateAnswer, saveLocalChunks } from '@/lib/rag';
 import {
   sanitizeFileName,
   validateAndScanPdfBuffer,
   checkRateLimit,
 } from '@/lib/security';
+
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
   try {
@@ -50,46 +53,46 @@ export async function POST(request) {
     }
 
     console.log(`--- SECURE PDF PARSE STARTED: "${safeDocName}" (${(buffer.length / 1024).toFixed(1)} KB) ---`);
-    const parser = new PDFParse({ data: buffer });
-    const parsedData = await parser.getText();
-    await parser.destroy();
+    const pdfProxy = await getDocumentProxy(new Uint8Array(buffer));
+    const { text: rawExtractedText } = await extractText(pdfProxy, { mergePages: false });
 
     const chunks = [];
     const chunkSize = 350; // ~350 words per chunk for optimal semantic depth
     const chunkOverlap = 60; // 60 words overlap to preserve cross-boundary sentences
     const step = chunkSize - chunkOverlap; // 290 words advance per step
 
-    // Page-aware sliding-window chunking
-    if (parsedData.pages && parsedData.pages.length > 0) {
-      for (const p of parsedData.pages) {
-        const pageText = (p.text || '').replace(/\s+/g, ' ').trim();
-        if (!pageText) continue;
+    const pagesList = Array.isArray(rawExtractedText)
+      ? rawExtractedText.map((t, idx) => ({ page: idx + 1, text: (t || '').replace(/\s+/g, ' ').trim() }))
+      : [{ page: 1, text: (rawExtractedText || '').replace(/\s+/g, ' ').trim() }];
 
-        const words = pageText.split(' ');
-        if (words.length <= chunkSize) {
-          if (pageText.length > 10) {
+    // Page-aware sliding-window chunking
+    for (const p of pagesList) {
+      if (!p.text) continue;
+
+      const words = p.text.split(' ');
+      if (words.length <= chunkSize) {
+        if (p.text.length > 10) {
+          chunks.push({
+            page: p.page,
+            content: p.text,
+          });
+        }
+      } else {
+        for (let i = 0; i < words.length; i += step) {
+          const chunkSlice = words.slice(i, i + chunkSize).join(' ').trim();
+          if (chunkSlice.length > 15) {
             chunks.push({
-              page: p.num || 1,
-              content: pageText,
+              page: p.page,
+              content: chunkSlice,
             });
-          }
-        } else {
-          for (let i = 0; i < words.length; i += step) {
-            const chunkSlice = words.slice(i, i + chunkSize).join(' ').trim();
-            if (chunkSlice.length > 15) {
-              chunks.push({
-                page: p.num || 1,
-                content: chunkSlice,
-              });
-            }
           }
         }
       }
     }
 
-    // Fallback if pages was empty or unparsed
+    // Fallback if pagesList was empty or unparsed
     if (chunks.length === 0) {
-      const fullText = (parsedData.text || '').replace(/\s+/g, ' ').trim();
+      const fullText = pagesList.map(p => p.text).filter(Boolean).join(' ');
       const words = fullText.split(' ');
       if (words.length <= chunkSize) {
         if (fullText.length > 10) {
@@ -121,18 +124,24 @@ export async function POST(request) {
     // Safety guard against decompression bombs / text flood: cap to 400 chunks max
     const safeChunks = chunks.slice(0, 400);
 
-    console.log(`Extracted ${safeChunks.length} chunks. Generating contextual Gemini embeddings...`);
+    console.log(`Extracted ${safeChunks.length} chunks. Generating contextual Gemini embeddings in concurrent batches...`);
 
-    // Contextual Embedding: Embed with document and page metadata
+    // Contextual Embedding: Embed with document and page metadata in concurrent batches of 5
     const embeddedChunks = [];
-    for (let i = 0; i < safeChunks.length; i++) {
-      const chunk = safeChunks[i];
-      const contextualText = `Document: ${safeDocName} | Page: ${chunk.page}\n\n${chunk.content}`;
-      const vector = await getEmbedding(contextualText);
-      embeddedChunks.push({
-        ...chunk,
-        vector_embedding: vector,
-      });
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < safeChunks.length; i += BATCH_SIZE) {
+      const batchSlice = safeChunks.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.all(
+        batchSlice.map(async chunk => {
+          const contextualText = `Document: ${safeDocName} | Page: ${chunk.page}\n\n${chunk.content}`;
+          const vector = await getEmbedding(contextualText);
+          return {
+            ...chunk,
+            vector_embedding: vector,
+          };
+        })
+      );
+      embeddedChunks.push(...batchResults);
     }
 
     // Attempt to persist to Supabase

@@ -10,6 +10,24 @@ interface ChatMessage {
   timestamp?: string;
 }
 
+interface UploadApiResponse {
+  success?: boolean;
+  message?: string;
+  docName?: string;
+  totalChunks?: number;
+  docId?: string | number | null;
+  suggestedQuestions?: string[];
+  error?: string;
+}
+
+interface AskApiResponse {
+  success?: boolean;
+  answer?: string;
+  sources?: number[];
+  docName?: string;
+  error?: string;
+}
+
 // Lightweight formatted text renderer for bolding, bullet points, and inline code
 function FormattedText({ text }: { text: string }) {
   const lines = text.split('\n');
@@ -209,8 +227,15 @@ export default function Home() {
         body: formData,
       });
 
-      const data = await res.json();
-      if (data.success) {
+      let data: UploadApiResponse | null = null;
+      const text = await res.text();
+      try {
+        data = JSON.parse(text) as UploadApiResponse;
+      } catch {
+        // Not JSON formatted
+      }
+
+      if (res.ok && data?.success) {
         const fileName = data.docName || fileToUpload.name;
         const totalChunks = data.totalChunks || 1;
         const resolvedDocId = data.docId || null;
@@ -262,15 +287,26 @@ export default function Home() {
           setIsSidebarOpen(false);
         }
       } else {
+        const fallbackMsg =
+          res.status === 413
+            ? 'File is too large for serverless upload (Vercel max payload is 4.5MB).'
+            : res.status === 504
+            ? 'Server timed out while processing this document. Please try a smaller PDF.'
+            : res.status !== 200
+            ? `Server error (HTTP ${res.status}): ${text.slice(0, 120) || res.statusText || 'Upload failed'}`
+            : 'Failed to parse and embed PDF.';
+
         setUploadStatus({
           type: 'error',
-          message: data.error || 'Failed to parse and embed PDF.',
+          message: data?.error || fallbackMsg,
         });
       }
-    } catch {
+    } catch (err: unknown) {
+      console.error('Upload error:', err);
+      const errMsg = err instanceof Error ? err.message : String(err);
       setUploadStatus({
         type: 'error',
-        message: 'Network error occurred during upload. Please check your connection.',
+        message: errMsg ? `Upload failed: ${errMsg}` : 'Network error occurred during upload. Please check your connection.',
       });
     } finally {
       setIsUploading(false);
@@ -346,41 +382,59 @@ export default function Home() {
         }),
       });
 
-      const data = await res.json();
+      let data: AskApiResponse | null = null;
+      const text = await res.text();
+      try {
+        data = JSON.parse(text) as AskApiResponse;
+      } catch {
+        // Not JSON formatted
+      }
+
       const responseTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-      if (data.success) {
+      if (res.ok && data?.success) {
         setChatLog(prev => [
           ...prev,
           {
             role: 'assistant',
-            content: data.answer,
+            content: data.answer || '',
             sources: data.sources,
             timestamp: responseTime,
           },
         ]);
       } else {
+        const errorContent =
+          data?.error ||
+          (res.status === 504
+            ? 'The AI request timed out. Please try asking a more focused question.'
+            : res.status !== 200
+            ? `Server error (${res.status}): ${text.slice(0, 100) || res.statusText || 'Could not generate answer'}`
+            : "I couldn't find relevant information in the uploaded document.");
+
         setChatLog(prev => [
           ...prev,
           {
             role: 'assistant',
-            content: data.error
-              ? `Error: ${data.error}`
-              : "I couldn't find relevant information in the uploaded document.",
+            content: errorContent.startsWith('Error:') ? errorContent : `Error: ${errorContent}`,
             timestamp: responseTime,
           },
         ]);
       }
-    } catch {
+    } catch (err: unknown) {
+      console.error('Ask error:', err);
+      const errMsg = err instanceof Error ? err.message : String(err);
       setChatLog(prev => [
         ...prev,
         {
           role: 'assistant',
-          content: 'Network error occurred while fetching the answer. Please try again.',
+          content: errMsg
+            ? `Query failed: ${errMsg}`
+            : 'Network error occurred while fetching the answer. Please check your connection.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
     } finally {
+      setIsUploading(false);
       setLoading(false);
       inputRef.current?.focus();
     }

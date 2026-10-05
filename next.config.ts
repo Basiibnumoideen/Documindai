@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ['pdf-parse', '@napi-rs/canvas'],
+  allowedDevOrigins: ['192.168.1.5', '192.168.*', 'localhost', '127.0.0.1'],
 };
 
 export default nextConfig;
