@@ -547,7 +547,6 @@ export default function Home() {
         },
       ]);
     } finally {
-      setIsUploading(false);
       setLoading(false);
       inputRef.current?.focus();
     }
