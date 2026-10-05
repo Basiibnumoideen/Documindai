@@ -205,6 +205,7 @@ export default function Home() {
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const centerFileInputRef = useRef<HTMLInputElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -284,10 +285,14 @@ export default function Home() {
 
   // Unified trigger to open system file picker from ANY upload button in UI
   const triggerFileUpload = () => {
-    setIsSidebarOpen(true);
-    setTimeout(() => {
-      fileInputRef.current?.click();
-    }, 80);
+    if (centerFileInputRef.current) {
+      centerFileInputRef.current.click();
+    } else {
+      setIsSidebarOpen(true);
+      setTimeout(() => {
+        fileInputRef.current?.click();
+      }, 80);
+    }
   };
 
   // Core upload pipeline executed when a file is selected anywhere
@@ -295,10 +300,10 @@ export default function Home() {
     // Client-side security pre-flight checks
     if (!fileToUpload) return;
 
-    if (fileToUpload.size > 25 * 1024 * 1024) {
+    if (fileToUpload.size > 20 * 1024 * 1024) {
       setUploadStatus({
         type: 'error',
-        message: `Security Reject: File exceeds maximum allowed size (25 MB). Selected file is ${(fileToUpload.size / (1024 * 1024)).toFixed(1)} MB.`,
+        message: `Security Reject: File exceeds maximum allowed size (20 MB). Selected file is ${(fileToUpload.size / (1024 * 1024)).toFixed(1)} MB.`,
       });
       return;
     }
@@ -807,7 +812,9 @@ export default function Home() {
                   </span>
                   <h2 className="font-semibold text-xs sm:text-sm text-slate-200">Upload PDF</h2>
                 </div>
-                <span className="text-[11px] text-slate-500">PDF RAG</span>
+                <span className="text-[10px] font-mono font-medium text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-full">
+                  Max: 20 MB
+                </span>
               </div>
 
               {/* Dropzone Box */}
@@ -856,7 +863,11 @@ export default function Home() {
                     <p className="text-xs sm:text-sm font-medium text-slate-200 truncate">
                       {selectedFile.name}
                     </p>
-                    <p className="text-[11px] text-slate-400">{formatFileSize(selectedFile.size)}</p>
+                    <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
+                      <span>{formatFileSize(selectedFile.size)}</span>
+                      <span className="text-slate-600">•</span>
+                      <span className="text-cyan-300 font-medium">Max 20 MB</span>
+                    </div>
                     <span className="inline-block text-[11px] text-indigo-400 hover:text-indigo-300 font-medium underline">
                       Change document
                     </span>
@@ -866,7 +877,9 @@ export default function Home() {
                     <p className="text-xs sm:text-sm font-medium text-slate-200">
                       <span className="text-indigo-400">Click to browse</span> or drop PDF
                     </p>
-                    <p className="text-[11px] text-slate-500">Supports standard PDF files</p>
+                    <p className="text-[11px] text-slate-400">
+                      PDF format • <span className="text-cyan-300 font-medium">Max: 20 MB</span>
+                    </p>
                   </div>
                 )}
               </div>
@@ -1040,49 +1053,253 @@ export default function Home() {
                     : 'Upload any PDF document to begin. The AI retrieves grounded vector chunks and cites exact source pages.'}
                 </p>
 
-                {/* Primary Upload CTA Button when no document is active */}
+                {/* Document Hub Upload & Process Component in Center Chat */}
                 {!activeDocName ? (
-                  <button
-                    type="button"
-                    onClick={triggerFileUpload}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600 text-white text-xs sm:text-sm font-semibold shadow-lg shadow-indigo-500/25 transition-all cursor-pointer active:scale-95"
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                    <span>Upload Document to Start</span>
-                  </button>
-                ) : (
-                  /* Dynamic Tailored Question Cards (ONLY shown when document IS uploaded) */
-                  suggestedQuestions.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full text-left mt-2">
-                      {suggestedQuestions.map((q, idx) => (
-                        <div
-                          key={idx}
-                          onClick={() => handlePromptClick(q)}
-                          className="cursor-pointer p-3.5 rounded-xl bg-slate-900/60 hover:bg-indigo-500/10 border border-white/[0.08] hover:border-indigo-500/30 transition-all flex flex-col justify-between group shadow-sm"
-                        >
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/20">
-                              {idx === 0 ? '📑 Executive Summary' : `💡 Question ${idx + 1}`}
-                            </span>
-                            <svg
-                              className="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-400 transform group-hover:translate-x-0.5 transition-transform"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                            >
-                              <polyline points="9 18 15 12 9 6" />
-                            </svg>
+                  <div className="w-full max-w-xl mx-auto mt-2">
+                    <div className="rounded-2xl sm:rounded-3xl bg-slate-900/90 border border-white/[0.08] p-4 sm:p-6 shadow-2xl backdrop-blur-xl relative overflow-hidden text-left">
+                      {/* Top Glowing Accent Line */}
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-cyan-400 to-indigo-500 opacity-80" />
+
+                      {/* Card Header */}
+                      <div className="flex items-center justify-between mb-3.5">
+                        <div className="flex items-center gap-2.5">
+                          <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-400 text-xs font-bold border border-indigo-500/30">
+                            1
+                          </span>
+                          <div>
+                            <h4 className="font-semibold text-sm sm:text-base text-white">Upload & Process PDF</h4>
+                            <p className="text-[11px] text-slate-400">Embed document chunks into vector database</p>
                           </div>
-                          <p className="text-xs font-medium text-slate-200 group-hover:text-white leading-relaxed">
-                            {q}
-                          </p>
                         </div>
-                      ))}
+
+                        {/* Maximum Upload Size Badge */}
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/25 text-cyan-300 text-xs font-semibold font-mono shadow-sm shadow-cyan-500/10">
+                          <svg className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                          </svg>
+                          <span>Max: 20 MB</span>
+                        </div>
+                      </div>
+
+                      {/* Dropzone Box */}
+                      <div
+                        onDrop={handleDrop}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onClick={() => centerFileInputRef.current?.click()}
+                        className={`relative cursor-pointer group rounded-xl sm:rounded-2xl border-2 border-dashed p-5 sm:p-7 transition-all duration-200 flex flex-col items-center justify-center text-center ${isDragging
+                          ? 'border-indigo-400 bg-indigo-500/15 scale-[1.01]'
+                          : selectedFile
+                            ? 'border-emerald-500/40 bg-emerald-500/5'
+                            : 'border-white/10 hover:border-indigo-500/50 hover:bg-white/[0.02]'
+                          }`}
+                      >
+                        <input
+                          ref={centerFileInputRef}
+                          type="file"
+                          name="file"
+                          accept=".pdf"
+                          onChange={handleFileChange}
+                          className="hidden"
+                        />
+
+                        <div
+                          className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 transition-transform duration-200 group-hover:scale-110 shadow-md ${selectedFile
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                            : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                            }`}
+                        >
+                          {selectedFile ? (
+                            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          ) : (
+                            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                              <polyline points="17 8 12 3 7 8" />
+                              <line x1="12" y1="3" x2="12" y2="15" />
+                            </svg>
+                          )}
+                        </div>
+
+                        {selectedFile ? (
+                          <div className="space-y-1.5 w-full px-2">
+                            <p className="text-sm sm:text-base font-semibold text-slate-100 truncate">
+                              {selectedFile.name}
+                            </p>
+                            <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
+                              <span className="font-mono text-cyan-300">{formatFileSize(selectedFile.size)}</span>
+                              <span className="text-slate-600">•</span>
+                              <span className="text-emerald-400 font-medium">Ready to embed</span>
+                              <span className="text-slate-600">•</span>
+                              <span className="text-slate-400">Max: 20 MB</span>
+                            </div>
+                            <span className="inline-block text-xs text-indigo-400 hover:text-indigo-300 font-medium underline mt-1">
+                              Choose another PDF document
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            <p className="text-xs sm:text-sm font-medium text-slate-200">
+                              <span className="text-indigo-400 font-semibold group-hover:text-indigo-300">Click to browse</span> or drag & drop PDF here
+                            </p>
+                            <p className="text-[11px] sm:text-xs text-slate-400">
+                              Accepts standard PDF documents • Maximum upload size: <strong className="text-cyan-300 font-semibold">20 MB</strong>
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Process & Embed Button */}
+                      <div className="mt-3.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (selectedFile) {
+                              uploadPdfFile(selectedFile);
+                            } else {
+                              centerFileInputRef.current?.click();
+                            }
+                          }}
+                          disabled={isUploading}
+                          className={`w-full py-2.5 sm:py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 shadow-lg transition-all duration-200 cursor-pointer ${isUploading
+                            ? 'bg-slate-800 text-slate-400 cursor-not-allowed border border-white/5'
+                            : selectedFile
+                              ? 'bg-gradient-to-r from-indigo-500 via-indigo-600 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600 text-white shadow-indigo-500/25 active:scale-[0.99]'
+                              : 'bg-indigo-600/80 hover:bg-indigo-600 text-white shadow-indigo-500/20 active:scale-[0.99]'
+                            }`}
+                        >
+                          {isUploading ? (
+                            <>
+                              <svg className="animate-spin w-4 h-4 text-white" viewBox="0 0 24 24" fill="none">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                />
+                              </svg>
+                              <span>Embedding Chunks & Vectorizing...</span>
+                            </>
+                          ) : selectedFile ? (
+                            <>
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                              </svg>
+                              <span>Process & Embed PDF</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="17 8 12 3 7 8" />
+                                <line x1="12" y1="3" x2="12" y2="15" />
+                              </svg>
+                              <span>Select PDF to Upload (Max 20 MB)</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Real-time Status Alert */}
+                      {uploadStatus.message && (
+                        <div
+                          className={`mt-3 p-2.5 sm:p-3 rounded-xl text-xs flex items-start gap-2.5 border transition-all ${uploadStatus.type === 'loading'
+                            ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300'
+                            : uploadStatus.type === 'success'
+                              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                              : uploadStatus.type === 'error'
+                                ? 'bg-rose-500/10 border-rose-500/20 text-rose-300'
+                                : 'bg-slate-800 border-slate-700 text-slate-300'
+                            }`}
+                        >
+                          {uploadStatus.type === 'loading' && (
+                            <span className="w-3.5 h-3.5 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin flex-shrink-0 mt-0.5" />
+                          )}
+                          {uploadStatus.type === 'success' && (
+                            <svg className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
+                          {uploadStatus.type === 'error' && (
+                            <svg className="w-3.5 h-3.5 text-rose-400 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <circle cx="12" cy="12" r="10" />
+                              <line x1="12" y1="8" x2="12" y2="12" />
+                              <line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                          )}
+                          <span className="leading-relaxed flex-1 break-words">{uploadStatus.message}</span>
+                        </div>
+                      )}
+
+                      {/* Trust & Spec Badges */}
+                      <div className="mt-3.5 pt-3 border-t border-white/[0.06] grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-slate-400">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-cyan-400 font-bold">✓</span>
+                          <span>Max 20 MB size</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-cyan-400 font-bold">✓</span>
+                          <span>Malware check</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-cyan-400 font-bold">✓</span>
+                          <span>768-dim vectors</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-cyan-400 font-bold">✓</span>
+                          <span>Page citations</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Dynamic Tailored Question Cards (Shown when document IS uploaded) */
+                  suggestedQuestions.length > 0 && (
+                    <div className="w-full max-w-xl mx-auto space-y-3 mt-2">
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-xs font-semibold text-slate-400">Suggested Questions</span>
+                        <button
+                          type="button"
+                          onClick={() => centerFileInputRef.current?.click()}
+                          className="text-[11px] text-cyan-300 hover:text-cyan-200 flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                          </svg>
+                          <span>Upload Different PDF (Max 20 MB)</span>
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full text-left">
+                        {suggestedQuestions.map((q, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => handlePromptClick(q)}
+                            className="cursor-pointer p-3.5 rounded-xl bg-slate-900/60 hover:bg-indigo-500/10 border border-white/[0.08] hover:border-indigo-500/30 transition-all flex flex-col justify-between group shadow-sm"
+                          >
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/20">
+                                {idx === 0 ? '📑 Executive Summary' : `💡 Question ${idx + 1}`}
+                              </span>
+                              <svg
+                                className="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-400 transform group-hover:translate-x-0.5 transition-transform"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
+                                <polyline points="9 18 15 12 9 6" />
+                              </svg>
+                            </div>
+                            <p className="text-xs font-medium text-slate-200 group-hover:text-white leading-relaxed">
+                              {q}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )
                 )}
