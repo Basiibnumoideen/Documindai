@@ -390,7 +390,7 @@ export default function Home() {
           ...prev,
           {
             role: 'assistant',
-            content: `📄 **"${fileName}"** has been uploaded and indexed into ${totalChunks} vector chunks!\n\nI have analyzed its contents and generated tailored starter questions. Ask anything or pick a suggested topic below!`,
+            content: `**"${fileName}"** has been uploaded and indexed into ${totalChunks} vector chunks!\n\nI have analyzed its contents and generated tailored starter questions. Ask anything or pick a suggested topic below!`,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           },
         ]);
@@ -690,38 +690,6 @@ export default function Home() {
             Gemini 3.5 Flash
           </span>
 
-          {/* Quick Guide / Tutorial Button */}
-          <button
-            onClick={() => {
-              setTutorialStep(0);
-              setShowTutorial(true);
-            }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-all cursor-pointer shadow-sm active:scale-95"
-            title="Interactive Tutorial & User Guide"
-            aria-label="Open Tutorial Guide"
-          >
-            <svg className="w-3.5 h-3.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            <span className="hidden sm:inline">Guide</span>
-          </button>
-
-          {/* About Project & Developer Button */}
-          <button
-            onClick={() => setShowAboutModal(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium text-indigo-300 hover:text-white bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer shadow-sm active:scale-95"
-            title="About DocuMind AI & Developer"
-            aria-label="Open About Project and Developer Modal"
-          >
-            <svg className="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="16" x2="12" y2="12" />
-              <line x1="12" y1="8" x2="12.01" y2="8" />
-            </svg>
-            <span className="hidden sm:inline">About</span>
-          </button>
 
           {chatLog.length > 0 && (
             <button
@@ -1016,16 +984,25 @@ export default function Home() {
                   setTutorialStep(0);
                   setShowTutorial(true);
                 }}
-                className="flex-1 py-2 px-2.5 rounded-xl text-[11px] font-medium text-slate-300 hover:text-cyan-300 bg-white/[0.03] hover:bg-cyan-500/10 border border-white/[0.06] hover:border-cyan-500/25 transition-all text-center cursor-pointer flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+                className="flex-1 py-2 px-2.5 rounded-xl text-[11px] font-medium text-slate-300 hover:text-cyan-300 bg-white/[0.03] hover:bg-cyan-500/10 border border-white/[0.06] hover:border-cyan-500/25 transition-all text-center cursor-pointer flex items-center justify-center gap-1.5 shadow-sm active:scale-95 group"
+                title="Open Interactive User Guide"
               >
-                <span>📖</span>
+                <svg className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                </svg>
                 <span>User Guide</span>
               </button>
               <button
                 onClick={() => setShowAboutModal(true)}
-                className="flex-1 py-2 px-2.5 rounded-xl text-[11px] font-medium text-slate-300 hover:text-indigo-300 bg-white/[0.03] hover:bg-indigo-500/10 border border-white/[0.06] hover:border-indigo-500/25 transition-all text-center cursor-pointer flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+                className="flex-1 py-2 px-2.5 rounded-xl text-[11px] font-medium text-slate-300 hover:text-indigo-300 bg-white/[0.03] hover:bg-indigo-500/10 border border-white/[0.06] hover:border-indigo-500/25 transition-all text-center cursor-pointer flex items-center justify-center gap-1.5 shadow-sm active:scale-95 group"
+                title="About DocuMind AI & Developer"
               >
-                <span>ℹ️</span>
+                <svg className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
                 <span>About & Dev</span>
               </button>
             </div>
@@ -1236,19 +1213,27 @@ export default function Home() {
                       {/* Trust & Spec Badges */}
                       <div className="mt-3.5 pt-3 border-t border-white/[0.06] grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-slate-400">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-cyan-400 font-bold">✓</span>
+                          <svg className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
                           <span>Max 20 MB size</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-cyan-400 font-bold">✓</span>
+                          <svg className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
                           <span>Malware check</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-cyan-400 font-bold">✓</span>
+                          <svg className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
                           <span>768-dim vectors</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-cyan-400 font-bold">✓</span>
+                          <svg className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
                           <span>Page citations</span>
                         </div>
                       </div>
@@ -1281,8 +1266,25 @@ export default function Home() {
                             className="cursor-pointer p-3.5 rounded-xl bg-slate-900/60 hover:bg-indigo-500/10 border border-white/[0.08] hover:border-indigo-500/30 transition-all flex flex-col justify-between group shadow-sm"
                           >
                             <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/20">
-                                {idx === 0 ? '📑 Executive Summary' : `💡 Question ${idx + 1}`}
+                              <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 flex items-center gap-1">
+                                {idx === 0 ? (
+                                  <>
+                                    <svg className="w-3 h-3 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                      <polyline points="14 2 14 8 20 8" />
+                                    </svg>
+                                    <span>Executive Summary</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <svg className="w-3 h-3 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <circle cx="12" cy="12" r="10" />
+                                      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                                    </svg>
+                                    <span>Question {idx + 1}</span>
+                                  </>
+                                )}
                               </span>
                               <svg
                                 className="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-400 transform group-hover:translate-x-0.5 transition-transform"
@@ -1724,7 +1726,10 @@ export default function Home() {
                   : 'border-transparent text-slate-400 hover:text-slate-200'
                   }`}
               >
-                <span>🌟</span>
+                <svg className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
                 <span>Project Overview</span>
               </button>
               <button
@@ -1734,7 +1739,10 @@ export default function Home() {
                   : 'border-transparent text-slate-400 hover:text-slate-200'
                   }`}
               >
-                <span>👨‍💻</span>
+                <svg className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="16 18 22 12 16 6" />
+                  <polyline points="8 6 2 12 8 18" />
+                </svg>
                 <span>Developer Profile</span>
               </button>
               <button
@@ -1744,7 +1752,11 @@ export default function Home() {
                   : 'border-transparent text-slate-400 hover:text-slate-200'
                   }`}
               >
-                <span>🏗️</span>
+                <svg className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                  <polyline points="2 17 12 22 22 17" />
+                  <polyline points="2 12 12 17 22 12" />
+                </svg>
                 <span>Architecture</span>
               </button>
             </div>
@@ -1756,7 +1768,11 @@ export default function Home() {
                 <div className="space-y-4">
                   <div>
                     <h3 className="text-sm sm:text-base font-bold text-white mb-1.5 flex items-center gap-2">
-                      <span className="text-cyan-400">📄</span> What is DocuMind AI?
+                      <svg className="w-4 h-4 text-cyan-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                      </svg>
+                      <span>What is DocuMind AI?</span>
                     </h3>
                     <p className="text-slate-300 leading-relaxed">
                       DocuMind AI is an enterprise-grade, retrieval-augmented intelligence platform engineered to eliminate knowledge cutoffs and LLM hallucinations. Rather than asking a language model to guess answers, DocuMind AI grounds every response mathematically against the specific pages and sections of your uploaded documents.
@@ -1840,8 +1856,12 @@ export default function Home() {
                           Full Stack Developer
                         </span>
                       </div>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        📍 Malappuram, Kerala, India • AI & Vector RAG Architect
+                      <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                        <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                          <circle cx="12" cy="10" r="3" />
+                        </svg>
+                        <span>Malappuram, Kerala, India • AI & Vector RAG Architect</span>
                       </p>
                     </div>
                   </div>
@@ -1855,7 +1875,10 @@ export default function Home() {
                       Entry-level Full Stack Developer proficient in the MERN stack (MongoDB, Express, React, Node.js), Next.js, and Python/Django web development. Passionate about engineering high-performance AI-assisted web platforms, vector retrieval systems, and clean software architecture.
                     </p>
                     <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.05] text-xs text-slate-400 flex items-center gap-2">
-                      <span className="text-indigo-400 font-bold">🎓</span>
+                      <svg className="w-4 h-4 text-indigo-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                        <path d="M6 12v5c3 3 9 3 12 0v-5" />
+                      </svg>
                       <span>
                         <strong className="text-white">B.Sc. in Computer Science</strong> — Calicut University (Regional College of Science and Humanities)
                       </span>
@@ -1941,7 +1964,10 @@ export default function Home() {
               {aboutActiveTab === 'architecture' && (
                 <div className="space-y-4">
                   <h3 className="text-sm sm:text-base font-bold text-white mb-1.5 flex items-center gap-2">
-                    <span className="text-violet-400">⚡</span> End-to-End RAG Architecture
+                    <svg className="w-4 h-4 text-violet-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                    </svg>
+                    <span>End-to-End RAG Architecture</span>
                   </h3>
 
                   <div className="space-y-2.5">
@@ -1949,7 +1975,7 @@ export default function Home() {
                       {
                         step: '1',
                         title: 'Binary Upload & Anti-Malware Validation',
-                        desc: 'Validates multipart payload, enforces 25MB cap, verifies %PDF- binary magic bytes, sanitizes filenames, and scans for embedded /Launch exploit strings.',
+                        desc: 'Validates multipart payload, enforces 20MB cap, verifies %PDF- binary magic bytes, sanitizes filenames, and scans for embedded /Launch exploit strings.',
                       },
                       {
                         step: '2',
