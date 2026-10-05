@@ -1821,7 +1821,7 @@ export default function Home() {
                   {/* Links */}
                   <div className="pt-2 flex flex-wrap items-center gap-2">
                     <a
-                      href="https://github.com/Basiibnumoideen/chat-with-pdf"
+                      href="https://github.com/Basiibnumoideen/Documindai"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-slate-800 hover:bg-slate-700 border border-white/10 transition-all cursor-pointer shadow-sm"

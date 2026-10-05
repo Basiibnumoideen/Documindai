@@ -347,8 +347,8 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/basiibnumoideen/chat-with-pdf.git
-cd chat-with-pdf
+git clone https://github.com/basiibnumoideen/Documindai.git
+cd Documindai
 ```
 
 ### 2. Install Dependencies
