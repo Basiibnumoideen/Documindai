@@ -23,7 +23,9 @@
 8. [Environment Configuration](#-environment-configuration)
 9. [Getting Started & Installation](#-getting-started--installation)
 10. [API Reference](#-api-reference)
-11. [Troubleshooting & FAQ](#-troubleshooting--faq)
+11. [About the Project](#-about-the-project)
+12. [Developer & Author Profile](#-developer--author-profile)
+13. [Troubleshooting & FAQ](#-troubleshooting--faq)
 
 ---
 
@@ -60,7 +62,7 @@ The platform operates across two distinct, highly optimized pipelines:
   └── Filename Sanitization (Strips path traversal & injection characters)
          │
          ▼
- [PDF Text Extraction via pdf-parse]
+ [PDF Text Extraction via unpdf (Zero Native Dependencies)]
          │
          ▼
  [Page-Aware Semantic Sliding Window Chunking]
@@ -233,7 +235,7 @@ When a document is uploaded, DocuMind AI immediately reads the introductory chun
 | **Vector DB** | [Supabase](https://supabase.com/) | `@supabase/supabase-js 2.117` | PostgreSQL with the `pgvector` extension for cosine distance search. |
 | **AI Embeddings** | [Google Gemini](https://ai.google.dev/) | `gemini-embedding-001` | High-accuracy 768-dimensional dense vector embeddings. |
 | **LLM Synthesis** | [Google Gemini](https://ai.google.dev/) | `gemini-3.5-flash` | Grounded, high-speed answer synthesis with verified citations. |
-| **PDF Extraction**| [pdf-parse](https://www.npmjs.com/package/pdf-parse) | `2.4.5` | Fast server-side text and page-by-page extraction from PDF buffers. |
+| **PDF Extraction**| [unpdf](https://www.npmjs.com/package/unpdf) | `1.8.1` | Zero-native-dependency, serverless-native PDF extraction optimized for Vercel and Node. |
 | **Icons & UX** | Custom SVG / Lucide | — | Lightweight, accessible, and scalable SVG iconography. |
 
 ---
@@ -419,6 +421,53 @@ npm run start
   "docName": "Research_Report.pdf"
 }
 ```
+
+---
+
+## ℹ️ About the Project
+
+**DocuMind AI** was conceptualized and developed to address one of the most pressing limitations in modern Artificial Intelligence: **knowledge isolation and ungrounded hallucinations**.
+
+### 🌟 Problem Statement
+Traditional LLMs operate on static training data cutoffs and cannot inspect private or recently published PDF documents without uploading them into massive, expensive context windows. When forced to extrapolate, standard chat models hallucinate plausible-sounding falsehoods, making them risky for legal, medical, academic, and financial research.
+
+### 💡 The Solution
+DocuMind AI implements an end-to-end **Retrieval-Augmented Generation (RAG)** pipeline:
+1. **Mathematical Grounding**: Every document is parsed with `unpdf` and converted into 768-dimensional semantic vectors via Google Gemini.
+2. **Hybrid Search Retrieval**: Questions are matched using 70% dense vector similarity blended with 30% lexical keyword precision.
+3. **Strict Citation Attribution**: The LLM is constrained to answer strictly from verified excerpts, attributing assertions to exact bracketed pages (e.g., `[Page 4]`).
+4. **100% Free-Tier Architecture**: Built with zero reliance on paid vector databases or closed-source enterprise software. Anyone can deploy and run it for free on Vercel and Supabase.
+
+---
+
+## 👨‍💻 Developer & Author Profile
+
+| Attribute | Details |
+| :--- | :--- |
+| **Developer Name** | **Muhammed Abdul Basith** |
+| **Role / Title** | Full Stack Developer & AI / RAG Engineer |
+| **Location** | Malappuram, Kerala, India |
+| **Email** | [basiibnumoideen@gmail.com](mailto:basiibnumoideen@gmail.com) |
+| **GitHub** | [@Basiibnumoideen](https://github.com/Basiibnumoideen) |
+| **Contact Phone** | +91 8590882253 |
+| **Education** | **Bachelor of Science in Computer Science (B.Sc.)**<br>Calicut University (*Regional College of Science and Humanities, Mundaparamba*) |
+
+### 🚀 Professional Background & Bio
+Muhammed Abdul Basith is an entry-level Full Stack Developer proficient in the MERN stack (MongoDB, Express.js, React.js, Node.js), Next.js, and Python/Django web development. Experienced in building responsive frontends, developing secure RESTful API endpoints, managing relational and NoSQL databases, and managing code with Git and GitHub.
+
+He utilizes modern AI-assisted development tools (Cursor, GitHub Copilot) for workflow acceleration, testing support, and architecture optimization while maintaining a rigorous foundational grasp of system security, clean code principles, and scalable cloud engineering.
+
+### 🛠️ Core Technical Competencies
+* **Languages**: JavaScript (ES6+), TypeScript, Python, SQL, HTML5, CSS3
+* **Frontend Architecture**: Next.js 16 (App Router), React 19, Tailwind CSS v4, Responsive Web Design
+* **Backend & APIs**: Node.js, Express.js, Django, RESTful APIs, Serverless Functions
+* **AI & Retrieval Systems**: Google Gemini API, Vector Embeddings, Hybrid Search (Dense + Lexical), RAG Pipeline Engineering
+* **Databases & Storage**: Supabase (pgvector), MongoDB (Mongoose), MySQL, SQLite, Local Vector Indexing
+* **Developer Tools**: Git, GitHub, Postman, VS Code, Vercel CI/CD, Cursor
+
+### 🏆 Key Certifications
+* **Python Bootcamp with Internship & Projects** — KITES SOFTWARES PVT. LTD. (*Grade: A+*)
+* **AI For All — AI Aware** — Foundational AI literacy credential
 
 ---
 

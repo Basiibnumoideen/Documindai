@@ -28,6 +28,72 @@ interface AskApiResponse {
   error?: string;
 }
 
+interface TutorialStep {
+  badge: string;
+  title: string;
+  description: string;
+  iconName: 'sparkles' | 'upload' | 'cpu' | 'chat' | 'keyboard';
+  highlights: string[];
+}
+
+const TUTORIAL_STEPS: TutorialStep[] = [
+  {
+    badge: 'Welcome to DocuMind AI',
+    title: 'Your Grounded Document Intelligence Hub',
+    description: 'Transform complex PDFs, research papers, legal contracts, and study materials into an interactive, conversational workspace. Answers strictly cite verified page numbers—eliminating AI hallucinations completely.',
+    iconName: 'sparkles',
+    highlights: [
+      '100% Free-Tier Architecture (Next.js 16 + Google Gemini Flash + Supabase pgvector)',
+      'Dual-tier vector storage with automatic high-speed local fallback',
+      'Strict grounding: every assertion is backed by exact source page excerpts',
+    ],
+  },
+  {
+    badge: 'Step 1: Document Ingestion',
+    title: 'Upload Any PDF Document',
+    description: 'Select or drag & drop your PDF file into the Document Hub on the left. DocuMind AI immediately scans and validates your document for malicious payloads.',
+    iconName: 'upload',
+    highlights: [
+      'Binary magic bytes (%PDF-) verification to block disguised files',
+      'Exploit & malware detection (blocks /Launch and embedded executable objects)',
+      'Automatic path traversal and filename injection sanitization',
+    ],
+  },
+  {
+    badge: 'Step 2: Vector Intelligence',
+    title: 'Zero-Dependency Indexing & Smart Starters',
+    description: 'Our unpdf engine extracts clean text page-by-page. Content is split into ~350-word sliding window chunks with 60-word overlap, and embedded into 768-dim mathematical vectors.',
+    iconName: 'cpu',
+    highlights: [
+      'High-speed concurrent batch embedding generation with Google Gemini',
+      'Dynamic starter generator synthesizes an Executive Summary + 3 tailored questions',
+      'Saved automatically to Supabase pgvector or high-speed local vector fallback',
+    ],
+  },
+  {
+    badge: 'Step 3: Grounded Research',
+    title: 'Chat with Verified Page Citations',
+    description: 'Ask deep-dive questions, request executive summaries, or extract financial figures. Every answer highlights concepts and provides clickable page references like [Page 3].',
+    iconName: 'chat',
+    highlights: [
+      'Hybrid retrieval score blends 70% dense vector semantics + 30% lexical keywords',
+      'One-click markdown text copy button on every AI answer for rapid note-taking',
+      'Conversation history and active document session persist across browser reloads',
+    ],
+  },
+  {
+    badge: 'Step 4: Pro Shortcuts',
+    title: 'Keyboard Shortcuts & Power Tools',
+    description: 'Work efficiently with built-in productivity shortcuts designed for document researchers and analysts.',
+    iconName: 'keyboard',
+    highlights: [
+      'Press Ctrl + B (or Cmd + B) anywhere to open or collapse the Document Hub',
+      'Press Enter to submit your question; Shift + Enter for new lines',
+      'Revisit this guide or view developer details anytime via the top header buttons',
+    ],
+  },
+];
+
 // Lightweight formatted text renderer for bolding, bullet points, and inline code
 function FormattedText({ text }: { text: string }) {
   const lines = text.split('\n');
@@ -102,6 +168,42 @@ export default function Home() {
   // Responsive sidebar open/close state (Icon-only toggle)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+  // Interactive Onboarding Tutorial State
+  const [showTutorial, setShowTutorial] = useState<boolean>(false);
+  const [tutorialStep, setTutorialStep] = useState<number>(0);
+  const [dontShowTutorialAgain, setDontShowTutorialAgain] = useState<boolean>(false);
+
+  // About Project & Developer Modal State
+  const [showAboutModal, setShowAboutModal] = useState<boolean>(false);
+  const [aboutActiveTab, setAboutActiveTab] = useState<'project' | 'developer' | 'architecture'>('project');
+  const [copiedEmail, setCopiedEmail] = useState<boolean>(false);
+
+  const handleCopyEmail = () => {
+    navigator.clipboard.writeText('basiibnumoideen@gmail.com');
+    setCopiedEmail(true);
+    setTimeout(() => setCopiedEmail(false), 2000);
+  };
+
+  const handleCloseTutorial = () => {
+    setShowTutorial(false);
+    if (dontShowTutorialAgain) {
+      try {
+        localStorage.setItem('documind_tutorial_seen', 'true');
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const handleCompleteTutorial = () => {
+    setShowTutorial(false);
+    try {
+      localStorage.setItem('documind_tutorial_seen', 'true');
+    } catch {
+      // ignore
+    }
+  };
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -129,6 +231,12 @@ export default function Home() {
           if (Array.isArray(parsedHistory) && parsedHistory.length > 0) {
             setChatLog(parsedHistory);
           }
+        }
+
+        // Check if first-time user should see the tutorial walkthrough
+        const hasSeenTutorial = localStorage.getItem('documind_tutorial_seen');
+        if (!hasSeenTutorial) {
+          setShowTutorial(true);
         }
       } catch (err) {
         console.warn('Failed to load session from localStorage:', err);
@@ -291,10 +399,10 @@ export default function Home() {
           res.status === 413
             ? 'File is too large for serverless upload (Vercel max payload is 4.5MB).'
             : res.status === 504
-            ? 'Server timed out while processing this document. Please try a smaller PDF.'
-            : res.status !== 200
-            ? `Server error (HTTP ${res.status}): ${text.slice(0, 120) || res.statusText || 'Upload failed'}`
-            : 'Failed to parse and embed PDF.';
+              ? 'Server timed out while processing this document. Please try a smaller PDF.'
+              : res.status !== 200
+                ? `Server error (HTTP ${res.status}): ${text.slice(0, 120) || res.statusText || 'Upload failed'}`
+                : 'Failed to parse and embed PDF.';
 
         setUploadStatus({
           type: 'error',
@@ -408,8 +516,8 @@ export default function Home() {
           (res.status === 504
             ? 'The AI request timed out. Please try asking a more focused question.'
             : res.status !== 200
-            ? `Server error (${res.status}): ${text.slice(0, 100) || res.statusText || 'Could not generate answer'}`
-            : "I couldn't find relevant information in the uploaded document.");
+              ? `Server error (${res.status}): ${text.slice(0, 100) || res.statusText || 'Could not generate answer'}`
+              : "I couldn't find relevant information in the uploaded document.");
 
         setChatLog(prev => [
           ...prev,
@@ -499,11 +607,10 @@ export default function Home() {
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
             onClick={() => setIsSidebarOpen(prev => !prev)}
-            className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer flex-shrink-0 active:scale-95 shadow-sm ${
-              isSidebarOpen
-                ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/25 hover:text-white'
-                : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.08]'
-            }`}
+            className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer flex-shrink-0 active:scale-95 shadow-sm ${isSidebarOpen
+              ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/25 hover:text-white'
+              : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.08]'
+              }`}
             title={isSidebarOpen ? 'Collapse Document Hub (Ctrl+B)' : 'Open Document Hub (Ctrl+B)'}
             aria-label="Toggle Document Hub"
           >
@@ -578,10 +685,43 @@ export default function Home() {
             Gemini 3.5 Flash
           </span>
 
+          {/* Quick Guide / Tutorial Button */}
+          <button
+            onClick={() => {
+              setTutorialStep(0);
+              setShowTutorial(true);
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-all cursor-pointer shadow-sm active:scale-95"
+            title="Interactive Tutorial & User Guide"
+            aria-label="Open Tutorial Guide"
+          >
+            <svg className="w-3.5 h-3.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span className="hidden sm:inline">Guide</span>
+          </button>
+
+          {/* About Project & Developer Button */}
+          <button
+            onClick={() => setShowAboutModal(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium text-indigo-300 hover:text-white bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer shadow-sm active:scale-95"
+            title="About DocuMind AI & Developer"
+            aria-label="Open About Project and Developer Modal"
+          >
+            <svg className="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            <span className="hidden sm:inline">About</span>
+          </button>
+
           {chatLog.length > 0 && (
             <button
               onClick={clearChat}
-              className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+              className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-rose-500/20"
               title="Clear conversation"
               aria-label="Clear chat"
             >
@@ -607,8 +747,8 @@ export default function Home() {
         {/* Collapsible Document Sidebar (Works on BOTH PC and Mobile) */}
         <aside
           className={`fixed lg:static top-14 lg:top-0 bottom-0 left-0 z-40 lg:z-auto bg-[#090d16] lg:bg-transparent flex flex-col flex-shrink-0 overflow-y-auto transition-all duration-300 ease-in-out ${isSidebarOpen
-              ? 'w-[85vw] max-w-[340px] sm:max-w-[360px] lg:w-[380px] p-4 sm:p-5 border-r border-white/[0.08] translate-x-0 opacity-100'
-              : '-translate-x-full lg:translate-x-0 lg:w-0 lg:p-0 lg:border-r-0 lg:opacity-0 lg:pointer-events-none overflow-hidden'
+            ? 'w-[85vw] max-w-[340px] sm:max-w-[360px] lg:w-[380px] p-4 sm:p-5 border-r border-white/[0.08] translate-x-0 opacity-100'
+            : '-translate-x-full lg:translate-x-0 lg:w-0 lg:p-0 lg:border-r-0 lg:opacity-0 lg:pointer-events-none overflow-hidden'
             }`}
         >
           {/* Header of Document Hub (Collapse button removed, controlled cleanly via header toggle) */}
@@ -677,10 +817,10 @@ export default function Home() {
                 onDragLeave={handleDragLeave}
                 onClick={() => fileInputRef.current?.click()}
                 className={`relative cursor-pointer group rounded-xl border-2 border-dashed p-4 sm:p-5 transition-all duration-200 flex flex-col items-center justify-center text-center ${isDragging
-                    ? 'border-indigo-400 bg-indigo-500/10'
-                    : selectedFile
-                      ? 'border-emerald-500/40 bg-emerald-500/5'
-                      : 'border-white/10 hover:border-indigo-500/40 hover:bg-white/[0.02]'
+                  ? 'border-indigo-400 bg-indigo-500/10'
+                  : selectedFile
+                    ? 'border-emerald-500/40 bg-emerald-500/5'
+                    : 'border-white/10 hover:border-indigo-500/40 hover:bg-white/[0.02]'
                   }`}
               >
                 <input
@@ -694,8 +834,8 @@ export default function Home() {
 
                 <div
                   className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2.5 transition-transform duration-200 group-hover:scale-105 ${selectedFile
-                      ? 'bg-emerald-500/20 text-emerald-400'
-                      : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
                     }`}
                 >
                   {selectedFile ? (
@@ -738,8 +878,8 @@ export default function Home() {
                   onClick={() => selectedFile && uploadPdfFile(selectedFile)}
                   disabled={!selectedFile || isUploading}
                   className={`w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 shadow-lg transition-all duration-200 ${!selectedFile || isUploading
-                      ? 'bg-slate-800/80 text-slate-500 cursor-not-allowed border border-white/5'
-                      : 'bg-gradient-to-r from-indigo-500 via-indigo-600 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600 text-white shadow-indigo-500/25 active:scale-[0.99] cursor-pointer'
+                    ? 'bg-slate-800/80 text-slate-500 cursor-not-allowed border border-white/5'
+                    : 'bg-gradient-to-r from-indigo-500 via-indigo-600 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600 text-white shadow-indigo-500/25 active:scale-[0.99] cursor-pointer'
                     }`}
                 >
                   {isUploading ? (
@@ -769,12 +909,12 @@ export default function Home() {
               {uploadStatus.message && (
                 <div
                   className={`mt-3 p-2.5 rounded-xl text-xs flex items-start gap-2 border transition-all ${uploadStatus.type === 'loading'
-                      ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300'
-                      : uploadStatus.type === 'success'
-                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
-                        : uploadStatus.type === 'error'
-                          ? 'bg-rose-500/10 border-rose-500/20 text-rose-300'
-                          : 'bg-slate-800 border-slate-700 text-slate-300'
+                    ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300'
+                    : uploadStatus.type === 'success'
+                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                      : uploadStatus.type === 'error'
+                        ? 'bg-rose-500/10 border-rose-500/20 text-rose-300'
+                        : 'bg-slate-800 border-slate-700 text-slate-300'
                     }`}
                 >
                   {uploadStatus.type === 'loading' && (
@@ -854,6 +994,27 @@ export default function Home() {
                 <span className="text-slate-500">Synthesis</span>
                 <span className="font-mono text-violet-300">Gemini 3.5 Flash</span>
               </div>
+            </div>
+
+            {/* Quick Links / Guide & Developer */}
+            <div className="pt-2 flex items-center justify-between gap-2 border-t border-white/[0.05]">
+              <button
+                onClick={() => {
+                  setTutorialStep(0);
+                  setShowTutorial(true);
+                }}
+                className="flex-1 py-2 px-2.5 rounded-xl text-[11px] font-medium text-slate-300 hover:text-cyan-300 bg-white/[0.03] hover:bg-cyan-500/10 border border-white/[0.06] hover:border-cyan-500/25 transition-all text-center cursor-pointer flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+              >
+                <span>📖</span>
+                <span>User Guide</span>
+              </button>
+              <button
+                onClick={() => setShowAboutModal(true)}
+                className="flex-1 py-2 px-2.5 rounded-xl text-[11px] font-medium text-slate-300 hover:text-indigo-300 bg-white/[0.03] hover:bg-indigo-500/10 border border-white/[0.06] hover:border-indigo-500/25 transition-all text-center cursor-pointer flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+              >
+                <span>ℹ️</span>
+                <span>About & Dev</span>
+              </button>
             </div>
           </div>
         </aside>
@@ -947,8 +1108,8 @@ export default function Home() {
                   {/* Message Bubble Container */}
                   <div
                     className={`group relative max-w-[88%] sm:max-w-[80%] rounded-2xl p-4 sm:p-4.5 transition-all shadow-md ${msg.role === 'user'
-                        ? 'bg-gradient-to-br from-[#1b2234] to-[#131722] border border-indigo-500/25 text-slate-100 rounded-tr-sm ml-auto shadow-indigo-950/20'
-                        : 'bg-[#0f1422]/90 border border-white/[0.08] text-slate-100 rounded-tl-sm backdrop-blur-md shadow-black/25'
+                      ? 'bg-gradient-to-br from-[#1b2234] to-[#131722] border border-indigo-500/25 text-slate-100 rounded-tr-sm ml-auto shadow-indigo-950/20'
+                      : 'bg-[#0f1422]/90 border border-white/[0.08] text-slate-100 rounded-tl-sm backdrop-blur-md shadow-black/25'
                       }`}
                   >
                     {/* Role Header & Timestamp */}
@@ -1125,8 +1286,8 @@ export default function Home() {
                     type="submit"
                     disabled={loading || !question.trim()}
                     className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center transition-all duration-200 ${loading || !question.trim()
-                        ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
-                        : 'bg-gradient-to-tr from-indigo-500 to-cyan-500 text-white shadow-md shadow-indigo-500/30 hover:scale-105 active:scale-95 cursor-pointer'
+                      ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                      : 'bg-gradient-to-tr from-indigo-500 to-cyan-500 text-white shadow-md shadow-indigo-500/30 hover:scale-105 active:scale-95 cursor-pointer'
                       }`}
                     title="Send message"
                     aria-label="Send message"
@@ -1146,6 +1307,490 @@ export default function Home() {
           </div>
         </section>
       </div>
+
+      {/* 1. Onboarding Interactive Tutorial Modal */}
+      {showTutorial && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-xl bg-[#0c1220] border border-white/10 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+            {/* Top Glowing Decorative Accent */}
+            <div className="h-1.5 w-full bg-gradient-to-r from-indigo-500 via-cyan-400 to-indigo-500" />
+
+            {/* Modal Header */}
+            <div className="p-4 sm:p-6 pb-2 flex items-center justify-between border-b border-white/[0.06]">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300">
+                  {TUTORIAL_STEPS[tutorialStep].badge}
+                </span>
+                <span className="text-xs text-slate-500 font-mono">
+                  {tutorialStep + 1} of {TUTORIAL_STEPS.length}
+                </span>
+              </div>
+              <button
+                onClick={handleCloseTutorial}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                title="Close Guide"
+                aria-label="Close Guide"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 sm:p-7 space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-500/20 via-violet-500/20 to-cyan-500/20 border border-white/10 flex items-center justify-center flex-shrink-0 shadow-inner">
+                  {TUTORIAL_STEPS[tutorialStep].iconName === 'sparkles' && (
+                    <svg className="w-6 h-6 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                    </svg>
+                  )}
+                  {TUTORIAL_STEPS[tutorialStep].iconName === 'upload' && (
+                    <svg className="w-6 h-6 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                  )}
+                  {TUTORIAL_STEPS[tutorialStep].iconName === 'cpu' && (
+                    <svg className="w-6 h-6 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                    </svg>
+                  )}
+                  {TUTORIAL_STEPS[tutorialStep].iconName === 'chat' && (
+                    <svg className="w-6 h-6 text-violet-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                    </svg>
+                  )}
+                  {TUTORIAL_STEPS[tutorialStep].iconName === 'keyboard' && (
+                    <svg className="w-6 h-6 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="2" y="4" width="20" height="16" rx="2" />
+                      <path d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M8 12h.001M12 12h.001M16 12h.001M18 16H6" />
+                    </svg>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base sm:text-lg font-bold text-white tracking-tight leading-snug">
+                    {TUTORIAL_STEPS[tutorialStep].title}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
+                    {TUTORIAL_STEPS[tutorialStep].description}
+                  </p>
+                </div>
+              </div>
+
+              {/* Highlights Box */}
+              <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3.5 space-y-2">
+                {TUTORIAL_STEPS[tutorialStep].highlights.map((item, idx) => (
+                  <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-300">
+                    <span className="text-cyan-400 font-bold mt-0.5">✓</span>
+                    <span className="leading-relaxed">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Dots indicator */}
+            <div className="px-6 flex items-center justify-center gap-1.5 py-1">
+              {TUTORIAL_STEPS.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setTutorialStep(idx)}
+                  className={`h-1.5 rounded-full transition-all cursor-pointer ${idx === tutorialStep
+                    ? 'w-6 bg-cyan-400 shadow-sm shadow-cyan-500/50'
+                    : 'w-2 bg-white/20 hover:bg-white/40'
+                    }`}
+                  aria-label={`Go to step ${idx + 1}`}
+                />
+              ))}
+            </div>
+
+            {/* Modal Footer Controls */}
+            <div className="p-4 sm:p-6 pt-3 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-white/[0.06] bg-slate-900/40">
+              <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer select-none self-start sm:self-center">
+                <input
+                  type="checkbox"
+                  checked={dontShowTutorialAgain}
+                  onChange={e => setDontShowTutorialAgain(e.target.checked)}
+                  className="rounded border-slate-700 bg-slate-800 text-indigo-500 focus:ring-0 cursor-pointer"
+                />
+                <span>Don&apos;t show on startup</span>
+              </label>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                {tutorialStep > 0 && (
+                  <button
+                    onClick={() => setTutorialStep(prev => prev - 1)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] transition-all cursor-pointer active:scale-95"
+                  >
+                    Previous
+                  </button>
+                )}
+
+                {tutorialStep < TUTORIAL_STEPS.length - 1 ? (
+                  <button
+                    onClick={() => setTutorialStep(prev => prev + 1)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600 shadow-md shadow-indigo-500/25 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                  >
+                    <span>Next</span>
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleCompleteTutorial}
+                    className="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 shadow-md shadow-emerald-500/25 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                  >
+                    <span>Get Started</span>
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Comprehensive About Project & Developer Modal */}
+      {showAboutModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-2xl max-h-[90vh] bg-[#0c1220] border border-white/10 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+            {/* Top Glowing Decorative Accent */}
+            <div className="h-1.5 w-full bg-gradient-to-r from-cyan-400 via-indigo-500 to-violet-500" />
+
+            {/* Modal Header */}
+            <div className="p-4 sm:p-6 pb-3 flex items-center justify-between border-b border-white/[0.06]">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 via-indigo-600 to-cyan-400 p-[1px] shadow-md shadow-indigo-500/20">
+                  <div className="w-full h-full bg-[#090d16] rounded-[10px] flex items-center justify-center">
+                    <svg className="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                  </div>
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
+                    DocuMind<span className="text-cyan-400">.ai</span>
+                    <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-indigo-500/15 border border-indigo-500/30 text-indigo-300">
+                      About & Bio
+                    </span>
+                  </h2>
+                  <p className="text-[11px] text-slate-400">
+                    Retrieval-Augmented Generation Document Research Workspace
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowAboutModal(false)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                title="Close"
+                aria-label="Close About Modal"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Tab Navigation */}
+            <div className="flex border-b border-white/[0.06] bg-slate-900/50 px-4 sm:px-6">
+              <button
+                onClick={() => setAboutActiveTab('project')}
+                className={`py-3 px-3 sm:px-4 text-xs font-semibold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${aboutActiveTab === 'project'
+                  ? 'border-cyan-400 text-cyan-300'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+                  }`}
+              >
+                <span>🌟</span>
+                <span>Project Overview</span>
+              </button>
+              <button
+                onClick={() => setAboutActiveTab('developer')}
+                className={`py-3 px-3 sm:px-4 text-xs font-semibold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${aboutActiveTab === 'developer'
+                  ? 'border-indigo-400 text-indigo-300'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+                  }`}
+              >
+                <span>👨‍💻</span>
+                <span>Developer Profile</span>
+              </button>
+              <button
+                onClick={() => setAboutActiveTab('architecture')}
+                className={`py-3 px-3 sm:px-4 text-xs font-semibold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${aboutActiveTab === 'architecture'
+                  ? 'border-violet-400 text-violet-300'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+                  }`}
+              >
+                <span>🏗️</span>
+                <span>Architecture</span>
+              </button>
+            </div>
+
+            {/* Tab Content (Scrollable) */}
+            <div className="flex-1 overflow-y-auto p-5 sm:p-7 space-y-5 text-slate-300 text-xs sm:text-sm">
+              {/* TAB 1: PROJECT OVERVIEW */}
+              {aboutActiveTab === 'project' && (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold text-white mb-1.5 flex items-center gap-2">
+                      <span className="text-cyan-400">📄</span> What is DocuMind AI?
+                    </h3>
+                    <p className="text-slate-300 leading-relaxed">
+                      DocuMind AI is an enterprise-grade, retrieval-augmented intelligence platform engineered to eliminate knowledge cutoffs and LLM hallucinations. Rather than asking a language model to guess answers, DocuMind AI grounds every response mathematically against the specific pages and sections of your uploaded documents.
+                    </p>
+                  </div>
+
+                  {/* Core Value Pillars */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-1">
+                      <div className="flex items-center gap-1.5 font-semibold text-white text-xs">
+                        <span className="text-emerald-400">✓</span> 100% Free-Tier Architecture
+                      </div>
+                      <p className="text-[11.5px] text-slate-400 leading-relaxed">
+                        Runs on Next.js 16, Google Gemini 3.5 Flash, Supabase pgvector, and Vercel Serverless—zero credit cards or paid APIs required.
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-1">
+                      <div className="flex items-center gap-1.5 font-semibold text-white text-xs">
+                        <span className="text-cyan-400">✓</span> Zero Native Dependencies
+                      </div>
+                      <p className="text-[11.5px] text-slate-400 leading-relaxed">
+                        Powered by <code className="text-cyan-300">unpdf</code>, guaranteeing reliable serverless PDF parsing across Vercel, Node, and Edge without native C++ binary crashes.
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-1">
+                      <div className="flex items-center gap-1.5 font-semibold text-white text-xs">
+                        <span className="text-indigo-400">✓</span> Dual-Tier Storage Resilience
+                      </div>
+                      <p className="text-[11.5px] text-slate-400 leading-relaxed">
+                        Primary vector storage in PostgreSQL pgvector with instant, zero-latency automatic fallback to local vector indexing.
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-1">
+                      <div className="flex items-center gap-1.5 font-semibold text-white text-xs">
+                        <span className="text-rose-400">✓</span> Enterprise Security Suite
+                      </div>
+                      <p className="text-[11.5px] text-slate-400 leading-relaxed">
+                        Binary magic bytes validation (%PDF-), anti-malware exploit blocking (/Launch), sliding-window rate limiting, and prompt injection defense.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Links */}
+                  <div className="pt-2 flex flex-wrap items-center gap-2">
+                    <a
+                      href="https://github.com/Basiibnumoideen/chat-with-pdf"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-slate-800 hover:bg-slate-700 border border-white/10 transition-all cursor-pointer shadow-sm"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                      </svg>
+                      <span>GitHub Repository</span>
+                    </a>
+
+
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: DEVELOPER PROFILE */}
+              {aboutActiveTab === 'developer' && (
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-indigo-600/5 to-cyan-500/10 border border-indigo-500/20">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-500 to-cyan-400 p-[2px] flex-shrink-0 shadow-md">
+                      <div className="w-full h-full bg-[#0a0f1d] rounded-[14px] flex items-center justify-center font-bold text-xl text-white">
+                        MB
+                      </div>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                          Muhammed Abdul Basith
+                        </h3>
+                        <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">
+                          Full Stack Developer
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        📍 Malappuram, Kerala, India • AI & Vector RAG Architect
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Summary & Education */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold text-slate-200 uppercase tracking-wider">
+                      Professional Background
+                    </h4>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Entry-level Full Stack Developer proficient in the MERN stack (MongoDB, Express, React, Node.js), Next.js, and Python/Django web development. Passionate about engineering high-performance AI-assisted web platforms, vector retrieval systems, and clean software architecture.
+                    </p>
+                    <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.05] text-xs text-slate-400 flex items-center gap-2">
+                      <span className="text-indigo-400 font-bold">🎓</span>
+                      <span>
+                        <strong className="text-white">B.Sc. in Computer Science</strong> — Calicut University (Regional College of Science and Humanities)
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Tech Stack Pills */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold text-slate-200 uppercase tracking-wider">
+                      Technical Competencies
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        'Next.js 16 (App Router)',
+                        'React 19',
+                        'TypeScript',
+                        'Node.js',
+                        'Python & Django',
+                        'MERN Stack',
+                        'Supabase (pgvector)',
+                        'Google Gemini API',
+                        'Tailwind CSS v4',
+                        'unpdf Vector Parser',
+                        'MongoDB & MySQL',
+                        'Git & GitHub',
+                        'Vercel Serverless',
+                        'Cursor & Copilot',
+                      ].map((skill, sIdx) => (
+                        <span
+                          key={sIdx}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-white/[0.04] border border-white/[0.08] text-slate-300 hover:text-white hover:border-indigo-500/40 transition-colors"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Contact Badges & Actions */}
+                  <div className="pt-2 flex flex-wrap items-center gap-2">
+                    <a
+                      href="mailto:basiibnumoideen@gmail.com"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 shadow-md shadow-indigo-600/25 transition-all cursor-pointer"
+                    >
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect width="20" height="16" x="2" y="4" rx="2" />
+                        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                      </svg>
+                      <span>basiibnumoideen@gmail.com</span>
+                    </a>
+
+                    <button
+                      onClick={handleCopyEmail}
+                      className="px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                      title="Copy email to clipboard"
+                    >
+                      {copiedEmail ? (
+                        <>
+                          <span className="text-emerald-400">✓</span>
+                          <span>Copied!</span>
+                        </>
+                      ) : (
+                        <span>Copy Email</span>
+                      )}
+                    </button>
+
+                    <a
+                      href="https://github.com/Basiibnumoideen"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] transition-all cursor-pointer"
+                    >
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                      </svg>
+                      <span>GitHub Profile</span>
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: ARCHITECTURE */}
+              {aboutActiveTab === 'architecture' && (
+                <div className="space-y-4">
+                  <h3 className="text-sm sm:text-base font-bold text-white mb-1.5 flex items-center gap-2">
+                    <span className="text-violet-400">⚡</span> End-to-End RAG Architecture
+                  </h3>
+
+                  <div className="space-y-2.5">
+                    {[
+                      {
+                        step: '1',
+                        title: 'Binary Upload & Anti-Malware Validation',
+                        desc: 'Validates multipart payload, enforces 25MB cap, verifies %PDF- binary magic bytes, sanitizes filenames, and scans for embedded /Launch exploit strings.',
+                      },
+                      {
+                        step: '2',
+                        title: 'Zero-Native Text Extraction via unpdf',
+                        desc: 'Leverages serverless-native unpdf to extract page-by-page text streams without relying on C++ canvas binaries or heavy worker threads.',
+                      },
+                      {
+                        step: '3',
+                        title: 'Contextual Semantic Chunking',
+                        desc: 'Splits text into ~350-word sliding window chunks with 60-word cross-boundary overlap. Injects metadata prefix: "Document: {name} | Page: {num}".',
+                      },
+                      {
+                        step: '4',
+                        title: 'Gemini 768-Dim Vector Embeddings',
+                        desc: 'Concurrently embeds chunks in batches of 5 using Gemini embedding models, producing normalized 768-dimensional mathematical coordinates.',
+                      },
+                      {
+                        step: '5',
+                        title: 'Hybrid Similarity Retrieval Engine',
+                        desc: 'Combines 70% dense vector cosine distance with 30% lexical keyword matching to ensure both semantic breadth and exact term precision.',
+                      },
+                      {
+                        step: '6',
+                        title: 'Grounded Synthesis with Page Attribution',
+                        desc: 'Gemini 3.5 Flash generates structured responses with bullet points, bold concepts, and exact bracketed page citations [Page X].',
+                      },
+                    ].map(stage => (
+                      <div
+                        key={stage.step}
+                        className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.05]"
+                      >
+                        <span className="w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-400 font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                          {stage.step}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-white text-xs">{stage.title}</h4>
+                          <p className="text-[11.5px] text-slate-400 mt-0.5 leading-relaxed">{stage.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 sm:p-5 border-t border-white/[0.06] bg-slate-900/40 flex items-center justify-between">
+              <span className="text-[11px] text-slate-500">DocuMind AI • Developed by Muhammed Abdul Basith</span>
+              <button
+                onClick={() => setShowAboutModal(false)}
+                className="px-4 py-1.5 rounded-xl text-xs font-semibold text-white bg-slate-800 hover:bg-slate-700 border border-white/10 transition-all cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
