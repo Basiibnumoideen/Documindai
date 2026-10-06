@@ -239,6 +239,11 @@ export default function Home() {
         if (!hasSeenTutorial) {
           setShowTutorial(true);
         }
+
+        // On mobile viewports, keep sidebar closed initially so chat workspace is immediately accessible
+        if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+          setIsSidebarOpen(false);
+        }
       } catch (err) {
         console.warn('Failed to load session from localStorage:', err);
       }
@@ -283,6 +288,28 @@ export default function Home() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
+  const isSupportedDocument = (file: File) => {
+    if (!file) return false;
+    const nameLower = file.name.toLowerCase();
+    const validExtensions = ['.pdf', '.png', '.jpg', '.jpeg', '.webp'];
+    const hasValidExt = validExtensions.some(ext => nameLower.endsWith(ext));
+    const validMimes = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'];
+    const hasValidMime = validMimes.includes(file.type);
+    return hasValidExt || hasValidMime;
+  };
+
+  const isImageFile = (file: File) => {
+    if (!file) return false;
+    const nameLower = file.name.toLowerCase();
+    return (
+      nameLower.endsWith('.png') ||
+      nameLower.endsWith('.jpg') ||
+      nameLower.endsWith('.jpeg') ||
+      nameLower.endsWith('.webp') ||
+      file.type.startsWith('image/')
+    );
+  };
+
   // Unified trigger to open system file picker from ANY upload button in UI
   const triggerFileUpload = () => {
     if (centerFileInputRef.current) {
@@ -316,19 +343,22 @@ export default function Home() {
       return;
     }
 
-    if (!fileToUpload.name.toLowerCase().endsWith('.pdf') && fileToUpload.type !== 'application/pdf') {
+    if (!isSupportedDocument(fileToUpload)) {
       setUploadStatus({
         type: 'error',
-        message: 'Security Reject: Only genuine PDF documents (.pdf) are accepted.',
+        message: 'Security Reject: Only PDF documents and image scans (.pdf, .png, .jpg, .jpeg, .webp) are accepted.',
       });
       return;
     }
 
     setSelectedFile(fileToUpload);
     setIsUploading(true);
+    const isImg = isImageFile(fileToUpload);
     setUploadStatus({
       type: 'loading',
-      message: `Analyzing, chunking & generating embeddings for "${fileToUpload.name}"...`,
+      message: isImg
+        ? `Processing scanned image with Gemini Vision OCR & generating vector embeddings for "${fileToUpload.name}"...`
+        : `Analyzing document, extracting text & generating embeddings for "${fileToUpload.name}"...`,
     });
 
     const formData = new FormData();
@@ -429,12 +459,12 @@ export default function Home() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+      if (isSupportedDocument(file)) {
         uploadPdfFile(file);
       } else {
         setUploadStatus({
           type: 'error',
-          message: 'Please select a valid PDF file.',
+          message: 'Please select a valid PDF document or mobile image scan (.pdf, .png, .jpg, .jpeg, .webp).',
         });
       }
       e.target.value = '';
@@ -446,12 +476,12 @@ export default function Home() {
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
-      if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+      if (isSupportedDocument(file)) {
         uploadPdfFile(file);
       } else {
         setUploadStatus({
           type: 'error',
-          message: 'Only PDF documents are supported.',
+          message: 'Please drop a valid PDF document or mobile image scan (.pdf, .png, .jpg, .jpeg, .webp).',
         });
       }
     }
@@ -801,7 +831,7 @@ export default function Home() {
                   ref={fileInputRef}
                   type="file"
                   name="file"
-                  accept=".pdf"
+                  accept=".pdf,application/pdf,image/png,image/jpeg,image/webp,image/jpg"
                   onChange={handleFileChange}
                   className="hidden"
                 />
@@ -842,10 +872,10 @@ export default function Home() {
                 ) : (
                   <div className="space-y-1">
                     <p className="text-xs sm:text-sm font-medium text-slate-200">
-                      <span className="text-indigo-400">Click to browse</span> or drop PDF
+                      <span className="text-indigo-400">Click to browse</span> or drop file
                     </p>
                     <p className="text-[11px] text-slate-400">
-                      PDF format • <span className="text-cyan-300 font-medium">Max: 20 MB</span>
+                      PDFs & image scans • <span className="text-cyan-300 font-medium">Max: 20 MB</span>
                     </p>
                   </div>
                 )}
@@ -1043,8 +1073,8 @@ export default function Home() {
                             1
                           </span>
                           <div>
-                            <h4 className="font-semibold text-sm sm:text-base text-white">Upload & Process PDF</h4>
-                            <p className="text-[11px] text-slate-400">Embed document chunks into vector database</p>
+                            <h4 className="font-semibold text-sm sm:text-base text-white">Upload & Process Document</h4>
+                            <p className="text-[11px] text-slate-400">PDFs & mobile scans embedded with vector intelligence</p>
                           </div>
                         </div>
 
@@ -1075,7 +1105,7 @@ export default function Home() {
                           ref={centerFileInputRef}
                           type="file"
                           name="file"
-                          accept=".pdf"
+                          accept=".pdf,application/pdf,image/png,image/jpeg,image/webp,image/jpg"
                           onChange={handleFileChange}
                           className="hidden"
                         />
@@ -1112,16 +1142,16 @@ export default function Home() {
                               <span className="text-slate-400">Max: 20 MB</span>
                             </div>
                             <span className="inline-block text-xs text-indigo-400 hover:text-indigo-300 font-medium underline mt-1">
-                              Choose another PDF document
+                              Choose another document or scan
                             </span>
                           </div>
                         ) : (
                           <div className="space-y-1.5">
                             <p className="text-xs sm:text-sm font-medium text-slate-200">
-                              <span className="text-indigo-400 font-semibold group-hover:text-indigo-300">Click to browse</span> or drag & drop PDF here
+                              <span className="text-indigo-400 font-semibold group-hover:text-indigo-300">Click to browse</span> or drag & drop document/image scan here
                             </p>
                             <p className="text-[11px] sm:text-xs text-slate-400">
-                              Accepts standard PDF documents • Maximum upload size: <strong className="text-cyan-300 font-semibold">20 MB</strong>
+                              Supports PDF documents & mobile image scans • Maximum upload size: <strong className="text-cyan-300 font-semibold">20 MB</strong>
                             </p>
                           </div>
                         )}

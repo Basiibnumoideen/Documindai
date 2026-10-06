@@ -42,6 +42,141 @@ export async function POST(request) {
     const rawFileName = file.name || 'document.pdf';
     const safeDocName = sanitizeFileName(rawFileName);
 
+/**
+ * Transcribes and extracts all text, tables, figures, numbers, and diagrams from
+ * scanned PDFs or image documents using Google Gemini Multimodal Vision.
+ * @param {Buffer} buffer
+ * @param {string} mimeType
+ * @param {string} docName
+ * @returns {Promise<string>}
+ */
+async function extractWithGeminiVision(buffer, mimeType, docName) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY is not configured in environment variables.');
+  }
+
+  const base64Data = buffer.toString('base64');
+  const models = [
+    'models/gemini-3.5-flash-lite',
+    'models/gemini-3.5-flash',
+  ];
+
+  const prompt = `You are DocuMind AI's Master Document Vision & OCR Intelligence System.
+Carefully examine every page, photo, table, diagram, and visual element in this uploaded file ("${docName}").
+
+Perform a comprehensive, ultra-high-fidelity transcription and visual understanding analysis:
+1. EXTRACT ALL VISIBLE TEXT: Extract all printed, scanned, and handwritten text, titles, subheadings, paragraphs, footnotes, and headers verbatim.
+2. PRESERVE TABLES & LISTS: Convert all tables, matrices, forms, and columnar data into clean GitHub-flavored Markdown tables or structured bullet lists.
+3. VISUAL ELEMENTS & DIAGRAMS: If there are charts, diagrams, flowcharts, architectures, photos, or graphs, write a concise factual description under a header "### [Visual/Diagram: Name]" describing the data points, relationships, trends, axes, and takeaways shown.
+4. EXACT PAGE DEMARCATION: If the document has multiple pages or sections, clearly demarcate each page with "--- Page 1 ---", "--- Page 2 ---", etc. at the start of each page.
+5. NO HALLUCINATION: Transcribe and describe only what is actually visible. Do not make up facts or unstated details.
+
+Begin the extraction now:`;
+
+  let lastError = null;
+  for (const model of models) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { text: prompt },
+                  {
+                    inlineData: {
+                      mimeType: mimeType || 'application/pdf',
+                      data: base64Data,
+                    },
+                  },
+                ],
+              },
+            ],
+          }),
+          signal: AbortSignal.timeout(35000),
+        }
+      );
+
+      if (!response.ok) {
+        let errMsg = `HTTP ${response.status} ${response.statusText}`;
+        try {
+          const errBody = await response.json();
+          if (errBody?.error?.message) errMsg = errBody.error.message;
+        } catch {}
+        console.warn(`Vision OCR attempt for ${model} returned:`, errMsg);
+        lastError = new Error(errMsg);
+        continue;
+      }
+
+      const data = await response.json();
+      const extractedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (extractedText && extractedText.trim().length > 0) {
+        return extractedText.trim();
+      }
+
+      if (data.error) {
+        lastError = new Error(data.error.message);
+      }
+    } catch (err) {
+      console.warn(`Vision OCR fetch error for ${model}:`, err.message);
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error('Failed to extract text or visual content using Gemini Vision.');
+}
+
+/**
+ * Splits OCR-extracted text by page demarcations (e.g. '--- Page 1 ---')
+ * @param {string} ocrText
+ * @returns {Array<{ page: number, text: string }>}
+ */
+function parseOcrPages(ocrText) {
+  if (!ocrText || typeof ocrText !== 'string') return [];
+
+  const pageRegex = /(?:^|\n)\s*(?:---|===|###|##|\[)?\s*Page\s*(\d+)\s*(?:---|===|###|##|\]|:)?\s*(?:\n|$)/gi;
+  const matches = [];
+  let m;
+  while ((m = pageRegex.exec(ocrText)) !== null) {
+    matches.push({
+      pageNumber: parseInt(m[1], 10),
+      index: m.index,
+      headerLength: m[0].length,
+    });
+  }
+
+  if (matches.length === 0) {
+    return [{ page: 1, text: ocrText.replace(/\s+/g, ' ').trim() }];
+  }
+
+  const pages = [];
+  if (matches[0].index > 0) {
+    const preText = ocrText.slice(0, matches[0].index).replace(/\s+/g, ' ').trim();
+    if (preText.length > 10) {
+      pages.push({ page: 1, text: preText });
+    }
+  }
+
+  for (let i = 0; i < matches.length; i++) {
+    const current = matches[i];
+    const startIndex = current.index + current.headerLength;
+    const endIndex = i + 1 < matches.length ? matches[i + 1].index : ocrText.length;
+    const pageContent = ocrText.slice(startIndex, endIndex).replace(/\s+/g, ' ').trim();
+    if (pageContent.length > 0) {
+      pages.push({
+        page: current.pageNumber,
+        text: pageContent,
+      });
+    }
+  }
+
+  return pages.length > 0 ? pages : [{ page: 1, text: ocrText.replace(/\s+/g, ' ').trim() }];
+}
+
     // 4. Read File Buffer & Perform Anti-Malware / Magic Bytes Security Scan
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -52,24 +187,73 @@ export async function POST(request) {
       return NextResponse.json({ error: securityScan.error }, { status: 400 });
     }
 
-    console.log(`--- SECURE PDF PARSE STARTED: "${safeDocName}" (${(buffer.length / 1024).toFixed(1)} KB) ---`);
-    const pdfProxy = await getDocumentProxy(new Uint8Array(buffer));
-    const { text: rawExtractedText } = await extractText(pdfProxy, { mergePages: false });
+    const format = securityScan.format || { type: 'pdf', mimeType: 'application/pdf', ext: 'pdf' };
+    let pagesList = [];
+    let isOcrExtraction = false;
+
+    if (format.type === 'image') {
+      console.log(`--- IMAGE SCAN DETECTED: "${safeDocName}" (${(buffer.length / 1024).toFixed(1)} KB) - Engaging Gemini Vision OCR ---`);
+      isOcrExtraction = true;
+      const ocrResult = await extractWithGeminiVision(buffer, format.mimeType, safeDocName);
+      pagesList = parseOcrPages(ocrResult);
+    } else {
+      console.log(`--- SECURE PDF PARSE STARTED: "${safeDocName}" (${(buffer.length / 1024).toFixed(1)} KB) ---`);
+      let totalWords = 0;
+      try {
+        const pdfProxy = await getDocumentProxy(new Uint8Array(buffer));
+        const { text: rawExtractedText } = await extractText(pdfProxy, { mergePages: false });
+
+        if (Array.isArray(rawExtractedText)) {
+          pagesList = rawExtractedText.map((t, idx) => ({
+            page: idx + 1,
+            text: (t || '').replace(/\s+/g, ' ').trim(),
+          }));
+        } else if (rawExtractedText) {
+          pagesList = [{ page: 1, text: String(rawExtractedText).replace(/\s+/g, ' ').trim() }];
+        }
+        totalWords = pagesList.reduce(
+          (acc, p) => acc + (p.text ? p.text.split(' ').filter(Boolean).length : 0),
+          0
+        );
+      } catch (pdfErr) {
+        console.warn('Digital unpdf extraction note (engaging OCR fallback):', pdfErr.message);
+      }
+
+      // Check if document has sparse or missing text (image scan, phone photo scan, scanned invoice/book)
+      const emptyPagesCount = pagesList.filter(p => !p.text || p.text.split(' ').filter(Boolean).length < 5).length;
+      const isScanOrImageHeavy =
+        totalWords < 25 || (pagesList.length > 0 && emptyPagesCount / pagesList.length >= 0.35);
+
+      if (isScanOrImageHeavy) {
+        console.log(
+          `Scanned or image-heavy PDF detected (${totalWords} words, ${emptyPagesCount}/${pagesList.length} empty pages). Engaging Gemini Multimodal Vision OCR...`
+        );
+        try {
+          const ocrResult = await extractWithGeminiVision(buffer, 'application/pdf', safeDocName);
+          const ocrPages = parseOcrPages(ocrResult);
+          if (ocrPages.length > 0 && ocrPages.some(p => p.text.length > 15)) {
+            pagesList = ocrPages;
+            isOcrExtraction = true;
+          }
+        } catch (ocrErr) {
+          console.warn('Gemini Vision OCR extraction note:', ocrErr.message);
+          if (totalWords < 15 && pagesList.every(p => !p.text)) {
+            throw new Error(`Failed to extract text from scanned PDF: ${ocrErr.message}`);
+          }
+        }
+      }
+    }
 
     const chunks = [];
     const chunkSize = 350; // ~350 words per chunk for optimal semantic depth
     const chunkOverlap = 60; // 60 words overlap to preserve cross-boundary sentences
     const step = chunkSize - chunkOverlap; // 290 words advance per step
 
-    const pagesList = Array.isArray(rawExtractedText)
-      ? rawExtractedText.map((t, idx) => ({ page: idx + 1, text: (t || '').replace(/\s+/g, ' ').trim() }))
-      : [{ page: 1, text: (rawExtractedText || '').replace(/\s+/g, ' ').trim() }];
-
     // Page-aware sliding-window chunking
     for (const p of pagesList) {
       if (!p.text) continue;
 
-      const words = p.text.split(' ');
+      const words = p.text.split(' ').filter(Boolean);
       if (words.length <= chunkSize) {
         if (p.text.length > 10) {
           chunks.push({
@@ -93,7 +277,7 @@ export async function POST(request) {
     // Fallback if pagesList was empty or unparsed
     if (chunks.length === 0) {
       const fullText = pagesList.map(p => p.text).filter(Boolean).join(' ');
-      const words = fullText.split(' ');
+      const words = fullText.split(' ').filter(Boolean);
       if (words.length <= chunkSize) {
         if (fullText.length > 10) {
           chunks.push({
@@ -116,7 +300,10 @@ export async function POST(request) {
 
     if (chunks.length === 0) {
       return NextResponse.json(
-        { error: 'Could not extract text from this PDF. It may be an image scan or password-protected.' },
+        {
+          error:
+            'Could not extract text or image data from this document. Please ensure the file contains legible content and is not password-protected.',
+        },
         { status: 400 }
       );
     }
@@ -245,6 +432,7 @@ ${sampleText}`;
       docName: safeDocName,
       docId: docId,
       suggestedQuestions,
+      extractionMode: isOcrExtraction ? 'Gemini Multimodal Vision OCR' : 'High-Speed Digital Parse',
       storage: supabaseSaved ? 'Supabase pgvector' : 'Local Vector Index (Fallback)',
     });
   } catch (error) {
