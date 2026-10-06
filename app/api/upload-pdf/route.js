@@ -74,8 +74,18 @@ Perform a comprehensive, ultra-high-fidelity transcription and visual understand
 
 Begin the extraction now:`;
 
+  const TOTAL_OCR_BUDGET_MS = 40000; // 40-second overall deadline for all OCR attempts
+  const MIN_ATTEMPT_REMAINING_MS = 3000; // Stop retrying when fewer than 3s remain
+  const deadline = Date.now() + TOTAL_OCR_BUDGET_MS;
+
   let lastError = null;
   for (const model of models) {
+    const remainingMs = deadline - Date.now();
+    if (remainingMs < MIN_ATTEMPT_REMAINING_MS) {
+      console.warn(`Insufficient time remaining (${remainingMs}ms) for OCR attempt with ${model}`);
+      break;
+    }
+
     try {
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`,
@@ -97,7 +107,7 @@ Begin the extraction now:`;
               },
             ],
           }),
-          signal: AbortSignal.timeout(35000),
+          signal: AbortSignal.timeout(remainingMs),
         }
       );
 
